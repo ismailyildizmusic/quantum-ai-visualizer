@@ -1,7 +1,7 @@
 """
 Quantum AI Visualizer - Streamlit Web Application
 TÜBİTAK 2204-A Project
-"""
+""''
 
 import streamlit as st
 import numpy as np
