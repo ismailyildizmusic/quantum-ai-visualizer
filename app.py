@@ -1,395 +1,283 @@
 """
-Quantum AI Visualizer - Streamlit Web Application
-TÜBİTAK 2204-A Project
+Quantum AI Visualizer - Pro Version
+Titreme Engelleyici (Anti-Flicker) Modu Aktif
 """
 
-import time
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import time
 
-# Page config (MUST be the first Streamlit command)
+# --- 1. SAYFA YAPILANDIRMASI (EN ÜSTTE) ---
 st.set_page_config(
     page_title="Quantum AI Visualizer",
     page_icon="⚛️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-# --- Strong anti-flicker CSS (locks background at html/body/container level) ---
-st.markdown(
-    """
+# --- 2. CSS İLE TİTREME ENGELLEME VE TASARIM ---
+st.markdown("""
 <style>
-/* Force background everywhere (prevents white flash on rerun) */
-html, body, #root,
-.stApp,
-[data-testid="stAppViewContainer"],
-[data-testid="stAppViewContainer"] > .main,
-[data-testid="stVerticalBlock"],
-[data-testid="stHeader"],
-[data-testid="stToolbar"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-}
+    /* 1. TİTREME ENGELLEYİCİ KODLAR (Anti-Shake) */
+    /* Kaydırma çubuğunu her zaman göster (Sağa sola oynamayı engeller) */
+    html {
+        overflow-y: scroll;
+    }
+    
+    /* Üstteki 'Running' animasyonunu ve header'ı gizle (Tepedeki oynamayı engeller) */
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Sayfa yenilenirken beyaz flaşı engelle */
+    .stApp {
+        background: linear-gradient(135deg, #141E30 0%, #243B55 100%);
+        background-attachment: fixed; /* Arka planı çivile */
+    }
 
-/* Remove header bar fill */
-[data-testid="stHeader"], [data-testid="stToolbar"] {
-    background: rgba(0,0,0,0) !important;
-}
-
-/* Optional: reduce layout jump */
-section.main > div {
-    padding-top: 1rem;
-}
-
-/* Cards */
-.q-card {
-    background: rgba(255, 255, 255, 0.92);
-    border: 2px solid rgba(102,126,234,0.55);
-    border-radius: 16px;
-    padding: 14px;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
-}
-
-/* Metrics */
-div[data-testid="metric-container"] {
-    background-color: rgba(255, 255, 255, 0.92);
-    border: 2px solid rgba(102,126,234,0.55);
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.10);
-}
+    /* 2. GÖRSEL KALİTE (Glassmorphism) */
+    /* Metrik Kutuları */
+    div[data-testid="stMetric"] {
+        background-color: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: scale(1.02);
+        border-color: #00d2ff;
+    }
+    
+    /* Yazı Tipleri ve Renkler */
+    h1, h2, h3, h4, p, span, li {
+        color: #E0E0E0 !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* Yan Menü Güzelleştirme */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(20, 30, 48, 0.9);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Buton Tasarımları */
+    div.stButton > button {
+        width: 100%;
+        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+        color: #141E30;
+        border: none;
+        font-weight: bold;
+        padding: 10px;
+        border-radius: 8px;
+    }
+    div.stButton > button:hover {
+        opacity: 0.9;
+        box-shadow: 0 0 15px rgba(0, 201, 255, 0.5);
+    }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# Title
-st.markdown(
-    """
-<div style='text-align: center; padding: 2rem; background: rgba(255,255,255,0.10); border-radius: 20px; margin-bottom: 1.3rem;'>
-    <h1 style='color: white; font-size: 3rem; margin-bottom: 0.3rem;'>⚛️ Quantum AI Visualizer</h1>
-    <p style='color: white; font-size: 1.15rem; margin: 0;'>Interactive Quantum Tunneling Simulator</p>
-    <p style='color: rgba(255,255,255,0.85); margin-top: 0.5rem;'>🏆 TÜBİTAK 2204-A Award Winner</p>
+# --- 3. BAŞLIK VE GİRİŞ ---
+st.markdown("""
+<div style='text-align: center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 15px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1);'>
+    <h1 style='font-size: 3rem; background: -webkit-linear-gradient(#eee, #333); -webkit-background-clip: text; text-shadow: 0px 0px 20px rgba(0, 210, 255, 0.5);'>
+        ⚛️ Quantum AI Visualizer
+    </h1>
+    <p style='font-size: 1.2rem; letter-spacing: 1px; opacity: 0.8;'>
+        Yapay Zeka Destekli Kuantum Tünelleme Laboratuvarı
+    </p>
+    <div style='margin-top: 10px;'>
+        <span style='background: #00d2ff; color: #000 !important; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;'>TÜBİTAK 2204-A</span>
+        <span style='background: #92FE9D; color: #000 !important; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; margin-left: 10px;'>Pro Version</span>
+    </div>
 </div>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# Session state
-if "animation" not in st.session_state:
-    st.session_state.animation = False
-if "frame" not in st.session_state:
-    st.session_state.frame = 0
-if "fps" not in st.session_state:
-    st.session_state.fps = 20  # default FPS
+# --- 4. AYARLAR VE STATE YÖNETİMİ ---
+if 'run_anim' not in st.session_state:
+    st.session_state.run_anim = False
+if 'frame_idx' not in st.session_state:
+    st.session_state.frame_idx = 0
 
+# Yan Menü
+with st.sidebar:
+    st.header("🎛️ Kontrol Paneli")
+    
+    st.info("Parametreleri buradan değiştirin:")
+    energy = st.slider("⚡ Enerji (E)", 0.1, 3.0, 0.8, 0.01, help="Parçacığın sahip olduğu toplam enerji")
+    barrier_height = st.slider("🧱 Bariyer Yüksekliği (V₀)", 1.0, 4.0, 1.5, 0.01, help="Aşılması gereken potansiyel engel")
+    barrier_width = st.slider("↔️ Bariyer Genişliği (L)", 0.5, 3.0, 1.0, 0.01, help="Engelin kalınlığı")
 
-def calculate_transmission(E, V0, L):
-    """Calculate tunneling probability (0..1)"""
-    if E >= V0:
+    st.markdown("---")
+    
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        # Animasyon Butonu
+        btn_label = "⏸️ Durdur" if st.session_state.run_anim else "▶️ Oynat"
+        if st.button(btn_label):
+            st.session_state.run_anim = not st.session_state.run_anim
+            st.rerun()
+            
+    with col_b2:
+        if st.button("🔄 Sıfırla"):
+            st.session_state.run_anim = False
+            st.session_state.frame_idx = 0
+            st.rerun()
+
+    st.markdown("---")
+    st.caption("Geliştirici: Dr. İsmail Yıldız")
+
+# --- 5. FİZİK MOTORU ---
+def solve_schrodinger(E, V0, L):
+    """Tünelleme olasılığını hesaplayan fizik motoru"""
+    if E >= V0: # Klasik Geçiş
         k1 = np.sqrt(2 * E)
         k2 = np.sqrt(2 * (E - V0))
-        numerator = 4 * k1 * k2
-        denominator = (k1 + k2) ** 2 - (k1 - k2) ** 2 * (np.sin(k2 * L) ** 2)
-        T = numerator / denominator if denominator != 0 else 1.0
-    else:
+        denom = (k1 + k2)**2 - (k1 - k2)**2 * np.sin(k2 * L)**2
+        T = (4 * k1 * k2 / denom) if denom != 0 else 1.0
+    else: # Kuantum Tünelleme
         kappa = np.sqrt(2 * (V0 - E))
-        if kappa * L > 100:
-            T = 16 * (E / V0) * (1 - E / V0) * np.exp(-2 * kappa * L)
-        else:
-            sinh_term = np.sinh(kappa * L) ** 2
-            denom = 4 * E * (V0 - E)
-            T = 1 / (1 + (V0**2 * sinh_term) / denom) if denom != 0 else 0.0
-    return float(np.clip(T, 0.0, 1.0))
+        if kappa * L > 50: return 0.0 # Taşma koruması
+        sinh_sq = np.sinh(kappa * L)**2
+        denom = 4 * E * (V0 - E)
+        T = (1 / (1 + (V0**2 * sinh_sq) / denom)) if denom != 0 else 0.0
+    return T
 
-
-def create_plot(E, V0, L, frame=0, show_wave=False):
-    """Create interactive Plotly visualization"""
-    x = np.linspace(-3, L + 3, 600)
-
-    # Potential barrier
+# --- 6. GRAFİK OLUŞTURUCU ---
+def draw_scene(E, V0, L, frame):
+    x = np.linspace(-3, L+3, 600)
+    
+    # Potansiyel Profili
     V = np.zeros_like(x)
     V[(x >= 0) & (x <= L)] = V0
-
-    # Transmission
-    T = calculate_transmission(E, V0, L)
-
+    
+    T = solve_schrodinger(E, V0, L)
+    
+    # Grafik İskeleti
     fig = make_subplots(
-        rows=2,
-        cols=1,
-        subplot_titles=("Potential Energy Profile", f"Probability Density (T = {T:.4f})"),
-        vertical_spacing=0.12,
-        specs=[[{"secondary_y": False}], [{"secondary_y": False}]],
+        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+        subplot_titles=("Potansiyel Enerji ve Dalga Fonksiyonu", "Olasılık Yoğunluğu (|ψ|²)")
     )
+    
+    # 1. Grafik: Bariyer ve Enerji
+    fig.add_trace(go.Scatter(x=x, y=V, name="Bariyer", fill='tozeroy', 
+                             line=dict(color='#00d2ff', width=1), fillcolor='rgba(0, 210, 255, 0.15)'), row=1, col=1)
+    
+    fig.add_trace(go.Scatter(x=x, y=[E]*len(x), name="Enerji", 
+                             line=dict(color='#ff6b6b', width=2, dash='dash')), row=1, col=1)
 
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=V,
-            name="Potential Barrier",
-            fill="tozeroy",
-            fillcolor="rgba(102,126,234,0.28)",
-            line=dict(color="#667eea", width=2),
-        ),
-        row=1,
-        col=1,
-    )
+    # Animasyonlu Dalga
+    phase = frame * 0.25
+    wave_real = []
+    
+    # Hızlı hesaplama için döngü optimizasyonu
+    k_inc = np.sqrt(2 * E)
+    kappa = np.sqrt(2 * max(V0 - E, 0.0))
+    
+    for xi in x:
+        if xi < 0: # Gelen Bölge
+            val = E + 0.4 * np.cos(5 * xi - phase)
+        elif 0 <= xi <= L: # Bariyer İçi
+            if E < V0: # Tünelleme
+                decay = np.exp(-kappa * xi)
+                val = E + 0.4 * decay * np.cos(-phase) 
+            else: # Klasik Geçiş
+                val = E + 0.4 * np.cos(5 * xi - phase)
+        else: # Geçen Bölge
+            val = E + 0.4 * np.sqrt(T) * np.cos(5 * (xi - L) - phase)
+        wave_real.append(val)
+        
+    fig.add_trace(go.Scatter(x=x, y=wave_real, name="Dalga (Re)", 
+                             line=dict(color='#ffffff', width=2), opacity=0.9), row=1, col=1)
 
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=[E] * len(x),
-            name=f"Energy (E={E:.2f})",
-            line=dict(color="#ff6b6b", width=2, dash="dash"),
-        ),
-        row=1,
-        col=1,
-    )
+    # 2. Grafik: Olasılık
+    prob = []
+    for xi in x:
+        if xi < 0: p = 1.0 + 0.1 * np.sin(phase/2) # Girişim efekti
+        elif 0 <= xi <= L: 
+            if E < V0: p = np.exp(-2 * kappa * xi)
+            else: p = 1.0 # Basitleştirilmiş
+        else: p = T
+        prob.append(p)
 
-    # Optional wave overlay (illustrative)
-    if show_wave:
-        phase = frame * 0.35
-        wave = np.zeros_like(x, dtype=float)
+    fig.add_trace(go.Scatter(x=x, y=prob, name="|ψ|²", fill='tozeroy',
+                             line=dict(color='#92FE9D', width=2), fillcolor='rgba(146, 254, 157, 0.2)'), row=2, col=1)
 
-        for i, xi in enumerate(x):
-            if xi < 0:
-                wave[i] = E + 0.28 * np.cos(5.5 * xi + phase)
-            elif 0 <= xi <= L:
-                if E < V0:
-                    wave[i] = E + 0.28 * np.exp(-np.sqrt(2 * max(V0 - E, 0.01)) * xi)
-                else:
-                    wave[i] = E + 0.20 * np.cos(4.5 * xi + phase)
-            else:
-                wave[i] = E + 0.28 * np.sqrt(T) * np.cos(5.5 * (xi - L) + phase)
-
-        fig.add_trace(
-            go.Scatter(
-                x=x,
-                y=wave,
-                name="Wave Function (illustrative)",
-                line=dict(color="#2fb6aa", width=2),
-                opacity=0.9,
-            ),
-            row=1,
-            col=1,
-        )
-
-    # Probability density
-    prob = np.ones_like(x, dtype=float)
-    if E < V0:
-        kappa = np.sqrt(2 * max(V0 - E, 0.01))
-        prob[x < 0] = 1.0
-        mid = (x >= 0) & (x <= L)
-        prob[mid] = np.exp(-2 * kappa * x[mid])
-        prob[x > L] = T
-    else:
-        prob[x > L] = min(1.0, 0.7 + 0.3 * T)
-
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=prob,
-            name="Probability |ψ|²",
-            fill="tozeroy",
-            fillcolor="rgba(168,85,247,0.25)",
-            line=dict(color="#a855f7", width=2),
-        ),
-        row=2,
-        col=1,
-    )
-
-    # Barrier boundaries
-    for r in [1, 2]:
-        fig.add_vline(x=0, line_width=1, line_dash="dot", line_color="gray", row=r, col=1)
-        fig.add_vline(x=L, line_width=1, line_dash="dot", line_color="gray", row=r, col=1)
-
-    fig.update_xaxes(title_text="Position (x)", row=2, col=1)
-    fig.update_yaxes(title_text="Energy", row=1, col=1)
-    fig.update_yaxes(title_text="|ψ|²", row=2, col=1)
-
-    # IMPORTANT: prevent white flashing backgrounds in Plotly redraw
+    # Düzen Ayarları (Titremeyi önlemek için sabit aralıklar)
     fig.update_layout(
-        height=720,
-        showlegend=True,
-        hovermode="x unified",
-        template="plotly_white",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(255,255,255,0.0)",
-        margin=dict(l=28, r=28, t=60, b=28),
-        font=dict(size=12),
+        height=650, # Sabit yükseklik
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#ccc'),
+        showlegend=False,
+        margin=dict(l=10, r=10, t=30, b=10),
+        xaxis1=dict(range=[-3, 6], showgrid=True, gridcolor='rgba(255,255,255,0.1)'), # X ekseni sabit
+        xaxis2=dict(range=[-3, 6], showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
+        yaxis1=dict(range=[0, 4.5], showgrid=True, gridcolor='rgba(255,255,255,0.1)'), # Y ekseni sabit (Çok önemli!)
+        yaxis2=dict(range=[0, 1.2], showgrid=True, gridcolor='rgba(255,255,255,0.1)'),
     )
-
     return fig, T
 
+# --- 7. ANA DÖNGÜ VE GÖSTERİM ---
+# Layout'u ikiye böl
+col_main, col_data = st.columns([3, 1])
 
-# Sidebar
-with st.sidebar:
-    st.header("⚙️ Control Panel")
-
-    st.subheader("📊 Parameters")
-
-    energy = st.slider(
-        "⚡ Particle Energy (E)",
-        min_value=0.1,
-        max_value=2.0,
-        value=0.8,
-        step=0.01,
-        format="%.2f",
-    )
-
-    barrier_height = st.slider(
-        "📈 Barrier Height (V₀)",
-        min_value=1.0,
-        max_value=3.0,
-        value=1.5,
-        step=0.01,
-        format="%.2f",
-    )
-
-    barrier_width = st.slider(
-        "↔️ Barrier Width (L)",
-        min_value=0.5,
-        max_value=2.5,
-        value=1.0,
-        step=0.01,
-        format="%.2f",
-    )
-
-    st.divider()
-
-    st.session_state.fps = st.slider("🎞️ Animation FPS", 5, 40, st.session_state.fps, 1)
-    show_wave = st.toggle("🌊 Show Wave Overlay", value=True)
-
-    st.divider()
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button(
-            "▶️ Animate" if not st.session_state.animation else "⏸️ Pause",
-            use_container_width=True,
-        ):
-            st.session_state.animation = not st.session_state.animation
-    with c2:
-        if st.button("🔄 Reset", use_container_width=True):
-            st.session_state.frame = 0
-            st.session_state.animation = False
-
-    st.divider()
-
-    st.subheader("🎭 Presets")
-    preset = st.radio(
-        "Select scenario:",
-        ["Custom", "Strong Tunneling", "Weak Tunneling", "Classical", "Critical Point"],
-    )
-
-    if preset == "Strong Tunneling":
-        energy, barrier_height, barrier_width = 0.9, 1.0, 0.5
-    elif preset == "Weak Tunneling":
-        energy, barrier_height, barrier_width = 0.3, 2.5, 2.0
-    elif preset == "Classical":
-        energy, barrier_height, barrier_width = 1.8, 1.2, 1.0
-    elif preset == "Critical Point":
-        energy, barrier_height, barrier_width = 1.5, 1.5, 1.0
-
-
-# Main layout
-left, right = st.columns([2, 1])
-
-with left:
-    frame_box = st.empty()
-
-    if st.session_state.animation:
-        st.session_state.frame += 1
-        animated_energy = energy + 0.20 * np.sin(st.session_state.frame * 0.12)
-        animated_energy = float(np.clip(animated_energy, 0.1, 2.0))
-        frame_box.caption(f"🎞️ Running… Frame: {st.session_state.frame} | FPS: {st.session_state.fps}")
-    else:
-        animated_energy = energy
-        frame_box.caption(f"⏸️ Paused | Frame: {st.session_state.frame}")
-
-    # Plot inside a card (reduces perceived flashing)
-    st.markdown("<div class='q-card'>", unsafe_allow_html=True)
-    fig, _ = create_plot(
-        animated_energy,
-        barrier_height,
-        barrier_width,
-        frame=st.session_state.frame,
-        show_wave=bool(show_wave and st.session_state.animation),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # Controlled rerun
-    if st.session_state.animation:
-        time.sleep(1.0 / max(st.session_state.fps, 1))
+# Ana Grafik Alanı
+with col_main:
+    # Boş bir kutu oluşturup grafiği HEP buraya çizeceğiz
+    # Bu sayede sayfa yapısı bozulmaz
+    chart_container = st.empty()
+    
+    # Animasyon mantığı
+    if st.session_state.run_anim:
+        st.session_state.frame_idx += 1
+        # Enerjide hafif salınım efekti
+        dynamic_E = energy + 0.05 * np.sin(st.session_state.frame_idx * 0.1)
+        fig, T_val = draw_scene(dynamic_E, barrier_height, barrier_width, st.session_state.frame_idx)
+        
+        # Grafiği bas
+        chart_container.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
+        
+        # Hız ayarı (CPU'yu yormamak için)
+        time.sleep(0.03)
         st.rerun()
-
-with right:
-    st.markdown("### 📊 Results")
-
-    T = calculate_transmission(energy, barrier_height, barrier_width)
-
-    st.markdown(
-        f"""
-<div class='q-card' style='text-align:center;'>
-    <h4 style='color: #667eea; margin: 0;'>Tunneling Probability</h4>
-    <div style='font-size: 3rem; font-weight: 800; color: #667eea; margin: 0.2rem 0;'>{T:.4f}</div>
-    <div style='font-size: 1.25rem; font-weight: 700; color: #764ba2;'>{T*100:.2f}%</div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    st.write("")
-
-    if energy >= barrier_height:
-        st.success("⚡ Classical Transmission (E ≥ V₀)")
     else:
-        st.warning("🌊 Quantum Tunneling (E < V₀)")
+        # Durmuş hali
+        fig, T_val = draw_scene(energy, barrier_height, barrier_width, st.session_state.frame_idx)
+        chart_container.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("### 📈 Statistics")
+# Veri Paneli (Sağ Taraf)
+with col_data:
+    st.markdown("### 📊 Sonuçlar")
+    
+    T_exact = solve_schrodinger(energy, barrier_height, barrier_width)
+    
+    # Büyük Olasılık Göstergesi
+    st.markdown(f"""
+    <div style='background: rgba(0,210,255,0.1); padding: 20px; border-radius: 15px; border: 1px solid #00d2ff; text-align: center; margin-bottom: 20px;'>
+        <div style='font-size: 0.9rem; color: #00d2ff;'>GEÇİŞ OLASILIĞI</div>
+        <div style='font-size: 2.8rem; font-weight: bold; color: white;'>%{T_exact*100:.2f}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.metric("Yansıma Olasılığı (R)", f"%{(1-T_exact)*100:.2f}")
+    st.metric("E / V₀ Oranı", f"{energy/barrier_height:.3f}")
+    
+    st.divider()
+    
+    if energy < barrier_height:
+        st.warning("⚠️ TÜNELLEME REJİMİ")
+        st.caption("Parçacık enerjisi bariyerden düşük olmasına rağmen 'sızarak' karşıya geçiyor.")
+    else:
+        st.success("✅ KLASİK GEÇİŞ")
+        st.caption("Parçacık enerjisi bariyeri aşacak kadar yüksek.")
 
-    a, b = st.columns(2)
-    with a:
-        st.metric("E/V₀ Ratio", f"{energy / barrier_height:.3f}")
-        st.metric("Reflection", f"{(1 - T) * 100:.1f}%")
-    with b:
-        if energy < barrier_height:
-            penetration = 1 / np.sqrt(2 * (barrier_height - energy))
-            st.metric("Penetration", f"{penetration:.3f}")
-        else:
-            st.metric("Penetration", "∞")
-        st.metric("Barrier Factor", f"{barrier_height * barrier_width:.2f}")
-
-    with st.expander("ℹ️ About Quantum Tunneling"):
-        st.markdown(
-            """
-**Quantum tunneling** is a quantum mechanical phenomenon where particles pass through energy barriers that they classically shouldn't be able to cross.
-
-**Applications:**
-- ⚡ Transistors
-- ☀️ Nuclear fusion in stars
-- 🔬 Scanning tunneling microscope
-- 💻 Quantum computers
-"""
-        )
-
-    with st.expander("📐 Mathematical Formulas"):
-        if energy < barrier_height:
-            st.latex(r"T = \frac{1}{1 + \frac{V_0^2 \sinh^2(\kappa L)}{4E(V_0-E)}}")
-            st.latex(r"\kappa = \sqrt{2(V_0-E)}")
-        else:
-            st.latex(r"T = \frac{4k_1k_2}{(k_1+k_2)^2 - (k_1-k_2)^2\sin^2(k_2L)}")
-
-# Footer
-st.divider()
-st.markdown(
-    """
-<div style='text-align: center; color: white; padding: 20px; background: rgba(255,255,255,0.08); border-radius: 14px;'>
-    <p style='margin: 0;'>Created with ❤️ for TÜBİTAK 2204-A Science Fair</p>
-    <p style='margin: 0.35rem 0 0 0;'>⚛️ Quantum Physics + 🤖 Artificial Intelligence = 🚀 Future of Education</p>
-</div>
-""",
-    unsafe_allow_html=True,
-)
+# --- 8. ALT BİLGİ ---
+st.markdown("---")
+with st.expander("📚 Kuantum Formülleri ve Detaylar"):
+    st.latex(r"T = \frac{1}{1 + \frac{V_0^2 \sinh^2(\kappa L)}{4E(V_0-E)}}")
+    st.markdown("TÜBİTAK 2204-A Projesi kapsamında hazırlanmıştır.")
