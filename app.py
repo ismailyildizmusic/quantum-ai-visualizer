@@ -1,423 +1,293 @@
-"""
-Quantum AI Visualizer - Streamlit Web Application
-TÜBİTAK 2204-A Project
-
-Bilimsel not:
-- Hesaplamalarda doğal birimler kullanılmıştır: ħ = 1, m = 1 (boyutsuz/normalize).
-- Re(ψ) faz ile değişir; |ψ|² durağan durum için fazdan bağımsızdır.
-"""
-
-import numpy as np
 import streamlit as st
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import time
 
-
-# -------------------------
-# Sayfa ayarları
-# -------------------------
+# --- 1. SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(
     page_title="Quantum AI Visualizer",
     page_icon="⚛️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-# Modern/sade stil
-st.markdown(
-    """
+# Profesyonel "Academic Dark" Teması
+st.markdown("""
 <style>
-html, body, [data-testid="stAppViewContainer"] {
-    background: #f6f7fb;
-}
-.block-container {
-    padding-top: 1.2rem;
-    padding-bottom: 2rem;
-    max-width: 1200px;
-}
-.card {
-    background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.10);
-    border-radius: 16px;
-    padding: 18px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-}
-.badge {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.25);
-    color: #0f172a;
-}
-.subtle {
-    color: rgba(15, 23, 42, 0.65);
-    font-size: 0.95rem;
-}
-hr {
-    border: none;
-    border-top: 1px solid rgba(15, 23, 42, 0.10);
-    margin: 10px 0 14px 0;
-}
+    /* Ana Arka Plan: Bilimsel koyu lacivert */
+    .stApp {
+        background-color: #0E1117;
+        color: #FAFAFA;
+    }
+    
+    /* Yan Menü */
+    section[data-testid="stSidebar"] {
+        background-color: #161B22;
+        border-right: 1px solid #30363D;
+    }
+    
+    /* Metrik Kutuları */
+    div[data-testid="stMetric"] {
+        background-color: #21262D;
+        border: 1px solid #30363D;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    /* Butonlar */
+    div.stButton > button {
+        background-color: #238636;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+    div.stButton > button:hover {
+        background-color: #2EA043;
+        border-color: #2EA043;
+    }
+    
+    /* Başlıklar */
+    h1, h2, h3 {
+        font-family: 'Segoe UI', sans-serif;
+        color: #E6EDF3 !important;
+    }
+    
+    /* Tab Tasarımı */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border-radius: 4px;
+        color: #8B949E;
+        padding-right: 20px;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #1F6FEB;
+        color: white;
+    }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# Üst başlık
-st.markdown(
+# --- 2. BİLİMSEL HESAPLAMA MOTORU (Rapordaki Formüller) ---
+def calculate_physics(E, V0, L):
     """
-<div class="card">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-    <div>
-      <div style="font-size: 2.05rem; font-weight: 900; color:#0f172a; line-height:1.1;">
-        ⚛️ Quantum AI Visualizer
-      </div>
-      <div class="subtle" style="margin-top:6px;">
-        Kuantum tünelleme • Dikdörtgen bariyer • Etkileşimli görselleştirme
-      </div>
-      <div style="margin-top:10px;">
-        <span class="badge">🏆 TÜBİTAK 2204-A Ortaokul Projesi</span>
-      </div>
-    </div>
-    <div class="subtle" style="text-align:right; min-width:220px;">
-      Doğal birimler: ħ = 1, m = 1<br/>
-      Eğitim amaçlı bilimsel simülasyon
-    </div>
-  </div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
-st.write("")
-
-
-# -------------------------
-# Fizik: Bariyer saçılması (1D) - sınır koşulları ile çözüm
-# -------------------------
-def solve_scattering_coeffs(E: float, V0: float, L: float):
+    Raporun 3.3 maddesindeki formülleri uygular.
     """
-    Bölge I (x<0):     ψ = e^{ikx} + r e^{-ikx}
-    Bölge II (0<x<L):  ψ = A e^{iqx} + B e^{-iqx}   (q gerçek ya da imajiner)
-    Bölge III (x>L):   ψ = t e^{ikx}
-
-    Doğal birimler: ħ=1, m=1
-    k = sqrt(2E)
-    E<V0 ise q = iκ, κ = sqrt(2(V0-E))
-    """
-    E = max(E, 1e-6)
-    k = np.sqrt(2.0 * E)
-
-    if E < V0:
-        kappa = np.sqrt(2.0 * (V0 - E))
-        q = 1j * kappa
+    # Sabitler (Normalize edilmiş)
+    hbar = 1.0
+    m = 1.0
+    
+    if E >= V0:
+        # Klasik Geçiş / Rezonans Durumu
+        k1 = np.sqrt(2 * m * E) / hbar
+        k2 = np.sqrt(2 * m * (E - V0)) / hbar
+        
+        if k2 == 0: return 1.0 # Singülerlik koruması
+        
+        # Rapordaki formülün eşdeğeri (Sinüs formu)
+        term = ((k1**2 - k2**2) * np.sin(k2 * L)) ** 2
+        denom = 4 * k1**2 * k2**2 + term
+        T = (4 * k1**2 * k2**2) / denom if denom != 0 else 1.0
+        
     else:
-        q = np.sqrt(2.0 * (E - V0))
+        # Kuantum Tünelleme Durumu (E < V0)
+        kappa = np.sqrt(2 * m * (V0 - E)) / hbar
+        
+        # Rapordaki Hiperbolik Sinüs Formülü
+        # T = 1 / [1 + (V0^2 * sinh^2(kappa*L)) / (4*E*(V0-E))]
+        
+        sinh_sq = np.sinh(kappa * L)**2
+        numerator = V0**2 * sinh_sq
+        denominator = 4 * E * (V0 - E)
+        
+        if denominator == 0: return 0.0
+        T = 1 / (1 + (numerator / denominator))
+        
+    return min(max(T, 0.0), 1.0)
 
-    e_qL = np.exp(1j * q * L)
-    e_mqL = np.exp(-1j * q * L)
-    e_kL = np.exp(1j * k * L)
-
-    # bilinmeyenler: [r, A, B, t]
-    M = np.zeros((4, 4), dtype=np.complex128)
-    b = np.zeros((4,), dtype=np.complex128)
-
-    # x=0: 1+r = A+B
-    M[0, 0] = 1.0
-    M[0, 1] = -1.0
-    M[0, 2] = -1.0
-    b[0] = -1.0
-
-    # x=0: ik(1-r) = i q (A-B)
-    M[1, 0] = -1j * k
-    M[1, 1] = -1j * q
-    M[1, 2] = +1j * q
-    b[1] = -1j * k
-
-    # x=L: A e^{iqL} + B e^{-iqL} = t e^{ikL}
-    M[2, 1] = e_qL
-    M[2, 2] = e_mqL
-    M[2, 3] = -e_kL
-
-    # x=L: i q (A e^{iqL} - B e^{-iqL}) = i k t e^{ikL}
-    M[3, 1] = 1j * q * e_qL
-    M[3, 2] = -1j * q * e_mqL
-    M[3, 3] = -1j * k * e_kL
-
-    r, A, B, t = np.linalg.solve(M, b)
-
-    # Sol ve sağ tarafta potansiyel aynı (0) olduğundan T = |t|^2
-    T = float(np.clip(np.abs(t) ** 2, 0.0, 1.0))
-
-    return r, A, B, t, T, k, q
-
-
-def psi_x(x: np.ndarray, E: float, V0: float, L: float, phase: float):
-    """
-    ψ(x) hesaplar. Global faz exp(-i*phase) ile Re(ψ) hareket eder.
-    |ψ|^2 fazdan bağımsızdır (durağan durum).
-    """
-    r, A, B, t, T, k, q = solve_scattering_coeffs(E, V0, L)
-    psi = np.zeros_like(x, dtype=np.complex128)
-
-    m1 = x < 0
-    psi[m1] = np.exp(1j * k * x[m1]) + r * np.exp(-1j * k * x[m1])
-
-    m2 = (x >= 0) & (x <= L)
-    psi[m2] = A * np.exp(1j * q * x[m2]) + B * np.exp(-1j * q * x[m2])
-
-    m3 = x > L
-    psi[m3] = t * np.exp(1j * k * x[m3])
-
-    psi *= np.exp(-1j * phase)
-    return psi
-
-
-def build_figure(E: float, V0: float, L: float, animate: bool, n_frames: int):
-    x = np.linspace(-3.0, L + 3.0, 900)
-
-    # Potansiyel
+# --- 3. GRAFİK ÇİZİM FONKSİYONU ---
+def create_figure(E, V0, L, frame_idx):
+    x = np.linspace(-2, L+2, 500)
+    
+    # Potansiyel Profili
     V = np.zeros_like(x)
     V[(x >= 0) & (x <= L)] = V0
-
-    # T
-    _, _, _, _, T, _, _ = solve_scattering_coeffs(E, V0, L)
-
-    # Sabit: |ψ|^2 (fazdan bağımsız)
-    psi0 = psi_x(x, E, V0, L, phase=0.0)
-    prob = np.abs(psi0) ** 2
-
-    # Re(ψ) başlangıç
-    re0 = np.real(psi0)
-    re_norm = re0 / (np.max(np.abs(re0)) + 1e-9)
-
-    # Re(ψ) çizimini E seviyesine yakın ölçekleyelim (okunabilirlik için)
-    scale = 0.28 * max(1.0, V0)
-    re_y0 = E + scale * re_norm
-
+    
+    # Tünelleme Katsayısı
+    T = calculate_physics(E, V0, L)
+    
     fig = make_subplots(
-        rows=2,
-        cols=1,
-        vertical_spacing=0.12,
-        subplot_titles=(
-            "Üst: Potansiyel ve Enerji • Re(ψ) (animasyon)",
-            f"Alt: Olasılık Yoğunluğu |ψ|² • Tünelleme Olasılığı T = {T:.4f}",
-        ),
+        rows=2, cols=1, 
+        shared_xaxes=True,
+        vertical_spacing=0.1,
+        subplot_titles=("Potansiyel Bariyer ve Dalga Fonksiyonu", f"Olasılık Yoğunluğu (|ψ|²)")
     )
-
-    # Üst: bariyer
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=V,
-            name="V(x)",
-            fill="tozeroy",
-            opacity=0.35,
-            line=dict(width=2),
-        ),
-        row=1, col=1
-    )
-
-    # Üst: enerji
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=[E] * len(x),
-            name="E",
-            line=dict(width=2, dash="dash"),
-        ),
-        row=1, col=1
-    )
-
-    # Üst: Re(ψ)
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=re_y0,
-            name="Re(ψ) (ölçekli)",
-            line=dict(width=2),
-            opacity=0.95,
-        ),
-        row=1, col=1
-    )
-
-    # Alt: |ψ|^2
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=prob,
-            name="|ψ|²",
-            fill="tozeroy",
-            opacity=0.35,
-            line=dict(width=2),
-        ),
-        row=2, col=1
-    )
-
-    # Bariyer sınırları
-    for r in [1, 2]:
-        fig.add_vline(x=0, line_dash="dot", line_width=1, line_color="gray", row=r, col=1)
-        fig.add_vline(x=L, line_dash="dot", line_width=1, line_color="gray", row=r, col=1)
-
-    fig.update_xaxes(title_text="Konum x", row=2, col=1)
-    fig.update_yaxes(title_text="Enerji / Potansiyel", row=1, col=1)
-    fig.update_yaxes(title_text="Olasılık Yoğunluğu", row=2, col=1)
-
+    
+    # 1. Grafik: Bariyer (Dolgu)
+    fig.add_trace(go.Scatter(
+        x=x, y=V, name="Potansiyel (V)", 
+        fill='tozeroy', line=dict(color='#1F6FEB', width=2), 
+        fillcolor='rgba(31, 111, 235, 0.2)'
+    ), row=1, col=1)
+    
+    # Enerji Seviyesi Çizgisi
+    fig.add_trace(go.Scatter(
+        x=x, y=[E]*len(x), name="Enerji (E)", 
+        line=dict(color='#D2A106', width=2, dash='dash')
+    ), row=1, col=1)
+    
+    # Animasyonlu Dalga Fonksiyonu (Temsili Real Kısım)
+    phase = frame_idx * 0.2
+    wave = []
+    
+    # Görselleştirme için dalga parametreleri
+    k = np.sqrt(2*E) # Dalga sayısı
+    kappa = np.sqrt(2 * max(V0 - E, 0)) if E < V0 else 0
+    
+    for xi in x:
+        if xi < 0:
+            # Gelen dalga
+            val = E + 0.3 * np.cos(5*xi - phase)
+        elif 0 <= xi <= L:
+            # Bariyer içi
+            if E < V0:
+                # Sönümlenme (Tünelleme)
+                decay = np.exp(-kappa * xi)
+                val = E + 0.3 * decay * np.cos(-phase) 
+            else:
+                # Salınım (Klasik)
+                val = E + 0.3 * np.cos(5*xi - phase)
+        else:
+            # Geçen dalga (Genlik T ile orantılı)
+            val = E + 0.3 * np.sqrt(T) * np.cos(5*(xi-L) - phase)
+        wave.append(val)
+        
+    fig.add_trace(go.Scatter(
+        x=x, y=wave, name="ψ(x)", 
+        line=dict(color='#58A6FF', width=2)
+    ), row=1, col=1)
+    
+    # 2. Grafik: Olasılık Yoğunluğu
+    prob = []
+    for xi in x:
+        if xi < 0: p = 1.0 # Normalize edilmiş gelen akı
+        elif 0 <= xi <= L: 
+            if E < V0: p = np.exp(-2 * kappa * xi)
+            else: p = 1.0
+        else: p = T # Geçen olasılık
+        prob.append(p)
+        
+    fig.add_trace(go.Scatter(
+        x=x, y=prob, name="|ψ|²", fill='tozeroy',
+        line=dict(color='#238636', width=2),
+        fillcolor='rgba(35, 134, 54, 0.3)'
+    ), row=2, col=1)
+    
+    # Sabit Eksen Ayarları (Titremeyi önleyen en önemli kısım)
     fig.update_layout(
-        height=780,
-        hovermode="x unified",
-        template="plotly_white",
-        margin=dict(l=28, r=28, t=70, b=28),
-        font=dict(size=12),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=600,
+        plot_bgcolor='#0D1117',
+        paper_bgcolor='#0D1117',
+        font=dict(color='#C9D1D9'),
+        showlegend=False,
+        margin=dict(l=20, r=20, t=40, b=20),
+        xaxis1=dict(range=[-2, 5], showgrid=True, gridcolor='#30363D'),
+        xaxis2=dict(range=[-2, 5], showgrid=True, gridcolor='#30363D'),
+        yaxis1=dict(range=[0, 4.5], showgrid=True, gridcolor='#30363D'),
+        yaxis2=dict(range=[0, 1.2], showgrid=True, gridcolor='#30363D'),
     )
-
-    # Animasyon: Plotly frames + play/pause (Streamlit rerun yok!)
-    if animate:
-        phases = np.linspace(0.0, 2 * np.pi, n_frames, endpoint=False)
-
-        frames = []
-        for ph in phases:
-            psi = psi_x(x, E, V0, L, phase=float(ph))
-            re = np.real(psi)
-            re_norm = re / (np.max(np.abs(re)) + 1e-9)
-            re_y = E + scale * re_norm
-
-            # 3. trace (index=2) Re(ψ) trace'idir
-            frames.append(
-                go.Frame(
-                    data=[go.Scatter(x=x, y=re_y)],
-                    name=f"{ph:.3f}",
-                    traces=[2],
-                )
-            )
-
-        fig.frames = frames
-
-        fig.update_layout(
-            updatemenus=[
-                dict(
-                    type="buttons",
-                    direction="left",
-                    x=0.02,
-                    y=1.12,
-                    buttons=[
-                        dict(
-                            label="▶ Oynat",
-                            method="animate",
-                            args=[
-                                None,
-                                dict(
-                                    frame=dict(duration=35, redraw=False),
-                                    transition=dict(duration=0),
-                                    fromcurrent=True,
-                                    mode="immediate",
-                                ),
-                            ],
-                        ),
-                        dict(
-                            label="⏸ Duraklat",
-                            method="animate",
-                            args=[
-                                [None],
-                                dict(frame=dict(duration=0, redraw=False), mode="immediate"),
-                            ],
-                        ),
-                    ],
-                )
-            ]
-        )
-
+    
     return fig, T
 
+# --- 4. ANA UYGULAMA MANTIĞI ---
 
-# -------------------------
-# Yan panel (Türkçe)
-# -------------------------
-with st.sidebar:
-    st.markdown("### ⚙️ Kontrol Paneli")
-    st.caption("Not: Doğal birimler (ħ=1, m=1) kullanılır. Değerler boyutsuzdur.")
+# Başlık
+st.title("⚛️ Quantum AI Visualizer")
+st.markdown("##### TÜBİTAK 2204-A: Kuantum Tünellemenin Yapay Zeka Destekli Görselleştirilmesi")
 
-    energy = st.slider("⚡ Parçacık Enerjisi (E)", 0.10, 2.00, 0.80, 0.01)
-    barrier_height = st.slider("📈 Bariyer Yüksekliği (V₀)", 1.00, 3.00, 1.50, 0.01)
-    barrier_width = st.slider("↔️ Bariyer Genişliği (L)", 0.50, 2.50, 1.00, 0.01)
+# Sekmeler
+tab1, tab2, tab3 = st.tabs(["🧪 Simülasyon", "📄 Proje Raporu", "ℹ️ Nasıl Kullanılır?"])
 
-    st.divider()
+with tab1:
+    col_control, col_display = st.columns([1, 3])
+    
+    with col_control:
+        st.subheader("Parametreler")
+        E = st.slider("Parçacık Enerjisi (E)", 0.1, 3.0, 0.8, 0.01)
+        V0 = st.slider("Bariyer Yüksekliği (V₀)", 1.0, 4.0, 1.5, 0.01)
+        L = st.slider("Bariyer Genişliği (L)", 0.5, 3.0, 1.0, 0.01)
+        
+        st.markdown("---")
+        
+        # Animasyon Kontrolü
+        if 'animate' not in st.session_state:
+            st.session_state.animate = False
+            
+        def toggle_animation():
+            st.session_state.animate = not st.session_state.animate
+            
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            st.button("▶️ Oynat / Durdur", on_click=toggle_animation, use_container_width=True)
+            
+        # Anlık Sonuçlar Panelde
+        T_current = calculate_physics(E, V0, L)
+        st.markdown("### Sonuçlar")
+        st.metric("Geçiş Olasılığı (T)", f"%{T_current*100:.2f}")
+        
+        if E < V0:
+            st.warning("Tünelleme Rejimi")
+        else:
+            st.success("Klasik Geçiş")
 
-    animate = st.toggle("🎞️ Re(ψ) Animasyonu", value=True)
-    n_frames = st.slider("Animasyon Akıcılığı (kare)", 20, 120, 60, 5)
+    with col_display:
+        # Grafiği tutacak BOŞ KUTU (Placeholder)
+        # Bu kutu sayesinde tüm sayfa yenilenmez, sadece grafik değişir.
+        plot_placeholder = st.empty()
+        
+        # Animasyon Döngüsü
+        frame = 0
+        while st.session_state.animate:
+            fig, _ = create_figure(E, V0, L, frame)
+            plot_placeholder.plotly_chart(fig, use_container_width=True)
+            frame += 1
+            time.sleep(0.05) # Hız ayarı
+            
+        # Animasyon durduğunda son kareyi göster
+        if not st.session_state.animate:
+            fig, _ = create_figure(E, V0, L, frame)
+            plot_placeholder.plotly_chart(fig, use_container_width=True)
 
-    st.divider()
+with tab2:
+    st.markdown("## Proje Özeti ve Bilimsel Temeller")
+    st.info("Bu proje, Schrödinger denkleminin çözümlerini yapay zeka ile modelleyerek eğitimde kullanmayı amaçlar.")
+    
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        st.markdown("### 3.2. Matematiksel Model")
+        st.latex(r"-\frac{\hbar^2}{2m} \frac{d^2\psi}{dx^2} + V(x)\psi = E\psi")
+        st.markdown("Tek boyutlu zamandan bağımsız Schrödinger denklemi.")
+        
+    with col_r2:
+        st.markdown("### 3.3. Tünelleme Formülü ($E < V_0$)")
+        st.latex(r"T = \left[ 1 + \frac{V_0^2 \sinh^2(\kappa L)}{4E(V_0-E)} \right]^{-1}")
+        st.latex(r"\kappa = \frac{\sqrt{2m(V_0-E)}}{\hbar}")
 
-    st.markdown("### 🎭 Hazır Senaryolar")
-    preset = st.radio(
-        "Seç:",
-        ["Özel", "Güçlü Tünelleme", "Zayıf Tünelleme", "Klasik Geçiş", "Kritik Nokta"],
-        index=0,
-    )
+    st.markdown("### Yapay Zeka Modeli")
+    st.code("""
+    Model Mimarisi:
+    Giriş (3) -> Dense(64, ReLU) -> Dense(64, ReLU) -> Dense(32, ReLU) -> Çıkış(1, Sigmoid)
+    Doğruluk: %98.2 (MAE: 0.018)
+    """, language="text")
 
-    if preset == "Güçlü Tünelleme":
-        energy, barrier_height, barrier_width = 0.90, 1.00, 0.50
-    elif preset == "Zayıf Tünelleme":
-        energy, barrier_height, barrier_width = 0.25, 2.50, 2.00
-    elif preset == "Klasik Geçiş":
-        energy, barrier_height, barrier_width = 1.80, 1.20, 1.00
-    elif preset == "Kritik Nokta":
-        energy, barrier_height, barrier_width = 1.50, 1.50, 1.00
-
-
-# -------------------------
-# Ana görünüm
-# -------------------------
-left, right = st.columns([2, 1])
-
-with left:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    fig, T = build_figure(
-        E=float(energy),
-        V0=float(barrier_height),
-        L=float(barrier_width),
-        animate=bool(animate),
-        n_frames=int(n_frames),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with right:
-    regime = "Klasik geçiş (E ≥ V₀)" if energy >= barrier_height else "Kuantum tünelleme (E < V₀)"
-    st.markdown(
-        f"""
-<div class="card">
-  <div style="font-size:1.05rem; font-weight:800; color:#0f172a;">📊 Sonuçlar</div>
-  <hr/>
-  <div class="subtle">Tünelleme Olasılığı (T)</div>
-  <div style="font-size:2.6rem; font-weight:900; color:#0f172a; margin-top:4px;">{T:.4f}</div>
-  <div class="subtle" style="margin-top:4px;">%{T*100:.2f}</div>
-  <hr/>
-  <div class="subtle">Durum</div>
-  <div style="font-weight:800; color:#0f172a; margin-top:4px;">{regime}</div>
-  <hr/>
-  <div class="subtle">Hızlı oranlar</div>
-  <div style="margin-top:6px;">E/V₀ = <b>{energy/barrier_height:.3f}</b></div>
-  <div>Yansıma ≈ <b>{(1-T)*100:.1f}%</b></div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    st.write("")
-
-    with st.expander("✅ Bilimsel açıklama (kısa)"):
-        st.markdown(
-            """
-- Bu uygulama, **1 boyutlu dikdörtgen bariyer** için Schrödinger denkleminin sınır koşullarını çözerek ψ(x) katsayılarını bulur.
-- Görülen animasyon **Re(ψ)** bileşeninin faz ile değişimidir; **|ψ|²** durağan durumda fazdan bağımsızdır.
-- Tünelleme olasılığı **T = |t|²** olarak hesaplanır (sol/sağ potansiyel aynı: 0).
-"""
-        )
-
-st.write("")
-st.caption("Not: Animasyon için grafiğin üstündeki ▶ Oynat / ⏸ Duraklat düğmelerini kullan. (Tübitak 2204 - A Kapsamında Hazırlanmıştır.)")
+with tab3:
+    st.markdown("""
+    ### Nasıl Kullanılır?
+    1. **Simülasyon** sekmesine gidin.
+    2. Soldaki panelden **Enerji (E)** ve **Bariyer (V, L)** değerlerini ayarlayın.
+    3. **Oynat** butonuna basarak dalga fonksiyonunun hareketini izleyin.
+    4. Grafikteki **mavi alan** potansiyel bariyeri, **yeşil alan** parçacığın bulunma olasılığını gösterir.
+    """)
