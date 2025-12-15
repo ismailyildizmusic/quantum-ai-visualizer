@@ -420,4 +420,4 @@ with right:
         )
 
 st.write("")
-st.caption("Not: Animasyon için grafiğin üstündeki ▶ Oynat / ⏸ Duraklat düğmelerini kullan. (Sayfa yenilenmez, flash yapmaz.)")
+st.caption("Not: Animasyon için grafiğin üstündeki ▶ Oynat / ⏸ Duraklat düğmelerini kullan. (Tübitak 2204 - A Kapsamında Hazırlanmıştır.)")
