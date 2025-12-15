@@ -1,7 +1,7 @@
 """
-Quantum AI Visualizer Pro - TÜBİTAK 2204-A
+Quantum AI Visualizer - TÜBİTAK 2204-A
 Final Versiyon: Fizik Motoru + AI Yorumlayıcı + Kuantum Sonifikasyon + Canlı Animasyon
-Hazırlayan: Dr. İsmail Yıldız & Gemini
+
 """
 
 import numpy as np
@@ -97,7 +97,7 @@ st.markdown(
         Yapay Zeka Destekli Kuantum Tünelleme Simülasyonu • Fizik Motoru + Sonifikasyon + Animasyon
       </p>
       <div style="margin-top:10px; display:inline-block; padding:6px 12px; border-radius:999px; background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18);">
-        🏆 TÜBİTAK 2204-A Ortaokul Öğrencileri Araştırma Projeleri Yarışması
+        🏆 TÜBİTAK 2204-A Lise Öğrencileri Araştırma Projeleri Yarışması
       </div>
     </div>
     <div style="color:#cbd5e1; font-size:0.9rem; text-align:right;">
@@ -477,8 +477,8 @@ st.markdown("---")
 st.markdown(
     """
 <div style="text-align:center; color:#94a3b8; font-size:0.86rem; padding:6px 0;">
-    TÜBİTAK 2204-A Ortaokul Öğrencileri Araştırma Projeleri Yarışması<br>
-    © 2025 Dr. İsmail Yıldız
+    TÜBİTAK 2204-A Lise Öğrencileri Araştırma Projeleri Yarışması<br>
+  
 </div>
 """,
     unsafe_allow_html=True,
