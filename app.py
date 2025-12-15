@@ -415,7 +415,7 @@ with col_viz:
         )
 
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("Animasyon, sayfa yenilenmeden grafiğin içinde çalışır. Bu yüzden arka plan yanıp sönmez.")
+    st.caption("Animasyonu oynatmak için oynat ve duraklat butonlarına basınız.")
 
 
 # -------------------------
