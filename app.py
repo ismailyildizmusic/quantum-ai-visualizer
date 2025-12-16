@@ -483,3 +483,4 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+tüm kodu verme
