@@ -26,10 +26,14 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+    .stDeployButton {display:none;}
+    footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+
 html, body, [data-testid="stAppViewContainer"] {
     background: #f8fafc;
-    color: #0f172a;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+    /* ... kodun geri kalanı aynen devam ediyor ... */
 }
 .block-container {
     padding-top: 1.2rem;
